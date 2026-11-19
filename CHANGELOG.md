@@ -1,5 +1,24 @@
 # CHANGELOG — Retro Sisters
 
+## v1.7 — Cracktro "RobD0511 AI Crew" (2026-11-19)
+
+- **New intro state `crack`:** the game now boots into a C64-style cracktro before the
+  title screen — rainbow-coloured sine scroller ("ROBD0511 AI CREW PRESENTS · RETRO SISTERS · …"),
+  animated broken microchip (two drifting chip halves) and a dedicated SID jingle
+  (`crackJingle`, music slot 3 in `audio.js`) plus a `crack` sound effect.
+- Enter / Space / click / Start button leaves the cracktro to the title screen (`toTitle()`);
+  the key press is not passed through to `start()`.
+- **Audio toggle:** a small fixed "Audio: ON/OFF" button is shown only during the cracktro.
+- **Clean cracktro screen:** game title, control buttons and the complete game manual
+  below the canvas (movement controls and gameplay tips) are hidden while `state === 'crack'`
+  and reappear unchanged on the title screen (`syncCracktroUI()`).
+- Verification: headless Firefox harness — 12 s cracktro without exceptions, scroller
+  continuous and right-to-left, SID sequence `startMusic(3) → playSFX(crack) → stopMusic → startMusic(0)`
+  correctly timed, state flow `crack → title → play` correct. Final state tested in the
+  browser and accepted by the user.
+- Game mechanics, levels, physics and the "Chrome Circuit" music are unchanged.
+
+
 ## v1.6 — Final cleanup before GitHub publication (2026-11-15)
 
 - **Codex (workspace-write):** removed the black debug HUD (state/frame/vx/held/err display)

@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Retro Sisters</title><style>
-*{box-sizing:border-box}body{margin:0;background:#0d0c2e;color:#ffffff;font:16px monospace;display:grid;place-items:center;min-height:100vh}main{width:min(100%,1000px);padding:16px;text-align:center}h1{font-size:20px;letter-spacing:5px;margin:0 0 12px;color:#75cec8}canvas{display:block;width:100%;aspect-ratio:16/9;background:#000;image-rendering:pixelated;border:4px solid #706deb;box-shadow:0 12px 60px #0008}p{font-size:12px;line-height:1.8;color:#b2b2b2}button{font:inherit;background:#2e2c9b;color:#ffffff;border:1px solid #706deb;padding:7px 14px;cursor:pointer}button:hover{background:#8e3c97}.controls{display:flex;gap:8px;justify-content:center;margin-top:12px;flex-wrap:wrap}
-</style></head><body><main><h1>RETRO SISTERS</h1><canvas id="game" width="512" height="288" tabindex="0" aria-label="Retro Sisters platform game"></canvas><div class="controls"><button id="start">Start / Restart</button><button id="pause">Pause [P]</button><button id="music">Music: ON</button><button id="sfx">SFX: ON</button></div><p>MOVE: A D / ← → · JUMP: SPACE / W / ↑ · PAUSE: P<br>Stomp the beetles. Break striped bricks from below. Pink stars grant speed and invincibility.<br>Collect gems, reach all three flags, and bring the sisters home.</p></main>
+*{box-sizing:border-box}body{margin:0;background:#0d0c2e;color:#ffffff;font:16px monospace;display:grid;place-items:center;min-height:100vh}main{width:min(100%,1000px);padding:16px;text-align:center}h1{font-size:20px;letter-spacing:5px;margin:0 0 12px;color:#75cec8}canvas{display:block;width:100%;aspect-ratio:16/9;background:#000;image-rendering:pixelated;border:4px solid #706deb;box-shadow:0 12px 60px #0008}p{font-size:12px;line-height:1.8;color:#b2b2b2}button{font:inherit;background:#2e2c9b;color:#ffffff;border:1px solid #706deb;padding:7px 14px;cursor:pointer}button:hover{background:#8e3c97}.controls{display:flex;gap:8px;justify-content:center;margin-top:12px;flex-wrap:wrap}.controls.hidden{display:none}#audioToggle{display:none;position:fixed;top:10px;right:12px;z-index:50;font:12px monospace;padding:5px 10px}
+</style></head><body><main><button id="audioToggle" type="button" aria-label="Audio ON/OFF">Audio: ON</button><h1 id="gameTitle">RETRO SISTERS</h1><canvas id="game" width="512" height="288" tabindex="0" aria-label="Retro Sisters platform game"></canvas><div class="controls hidden"><button id="start">Start / Restart</button><button id="pause">Pause [P]</button><button id="music">Music: ON</button><button id="sfx">SFX: ON</button></div><p id="guide" hidden>MOVE: A D / ← → · JUMP: SPACE / W / ↑ · PAUSE: P<br>Stomp the beetles. Break striped bricks from below. Pink stars grant speed and invincibility.<br>Collect gems, reach all three flags, and bring the sisters home.</p></main>
 <script src="audio.js"></script>
 <script>
 'use strict';
@@ -67,7 +67,7 @@ const maps=[
 /* 16-colour C64 palette: every pixel drawn below uses one of these keys */
 const C={k:'#000000',w:'#ffffff',r:'#813338',c:'#75cec8',p:'#8e3c97',g:'#56ac4d',b:'#2e2c9b',y:'#edf171',o:'#8e5029',n:'#553800',l:'#c46c71',d:'#4a4a4a',m:'#7b7b7b',G:'#a9ff9f',B:'#706deb',s:'#b2b2b2'};
 const themes=[{name:'SUNLIT ORCHARD',sky:'#75cec8',far:'#706deb',near:'#56ac4d',ground:'#8e5029',top:'#56ac4d',brick:'#c46c71'}, {name:'MOONLIT ROOFTOPS',sky:'#2e2c9b',far:'#8e3c97',near:'#000000',ground:'#7b7b7b',top:'#b2b2b2',brick:'#706deb'}, {name:'CRYSTAL HOLLOW',sky:'#000000',far:'#2e2c9b',near:'#8e3c97',ground:'#4a4a4a',top:'#75cec8',brick:'#75cec8'}];
-let state='title',level=0,score=0,lives=3,world,player,enemies,gems,stars,particles=[],camera=0,time=0,clearTimer=0,deathTimer=0,music=true,sfx=true,acc=0,last=0,anim=0;
+let state='crack',crackT=0,level=0,score=0,lives=3,world,player,enemies,gems,stars,particles=[],camera=0,time=0,clearTimer=0,deathTimer=0,music=true,sfx=true,acc=0,last=0,anim=0;
 const keys=new Set();let jumpBuffer=0;
 function sid(method,...args){const a=window.__SID;if(a&&typeof a[method]==='function'){try{a[method](...args)}catch(_){}}}
 function sound(name){if(sfx)sid('playSFX',name)}
@@ -129,7 +129,7 @@ function bump(x,y){const v=tile(x,y);if(v==='B'){world[y][x]='.';score+=25;burst
 function move(o,dt,isPlayer=false){o.x+=o.vx*dt;let left=Math.floor(o.x/T),right=Math.floor((o.x+o.w-.001)/T),top=Math.floor(o.y/T),bottom=Math.floor((o.y+o.h-.001)/T);let wall=false;for(let y=top;y<=bottom;y++){if(o.vx>0&&solid(right,y)){o.x=right*T-o.w;wall=true}if(o.vx<0&&solid(left,y)){o.x=(left+1)*T;wall=true}}if(wall){if(isPlayer)o.vx=0;else o.vx*=-1}o.vy+=GRAV*dt;o.y+=o.vy*dt;o.onGround=false;left=Math.floor(o.x/T);right=Math.floor((o.x+o.w-.001)/T);top=Math.floor(o.y/T);bottom=Math.floor((o.y+o.h-.001)/T);const goingDown=o.vy>=0;for(let x=left;x<=right;x++){if(goingDown&&solid(x,bottom)){o.y=bottom*T-o.h;o.vy=0;o.onGround=true}else if(!goingDown&&solid(x,top)){o.y=(top+1)*T;o.vy=0;if(isPlayer)bump(x,top)}}}
 function overlap(a,b){return a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y}
 function die(){if(state!=='play')return;state='dead';lives--;deathTimer=1.25;player.vy=-240;sound('hit');sound('die');if(music)sid('stopMusic')}
-function update(dt){if(state==='paused')return;anim+=dt;if(state==='title'||state==='over'||state==='win')return;time+=dt;particles.forEach(p=>{p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=400*dt;p.life-=dt});particles=particles.filter(p=>p.life>0);if(state==='dead'){player.vy+=GRAV*dt;player.y+=player.vy*dt;deathTimer-=dt;if(deathTimer<=0){if(lives>0){load(level);state='play'}else state='over'}return}if(state==='clear'){clearTimer-=dt;if(clearTimer<=0){if(level<2){load(level+1);state='play'}else{state='win';sid('stopMusic')}}return}
+function update(dt){if(state==='paused')return;anim+=dt;if(state==='crack'||state==='title'||state==='over'||state==='win'){if(state==='crack')crackTick(dt);return}time+=dt;particles.forEach(p=>{p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=400*dt;p.life-=dt});particles=particles.filter(p=>p.life>0);if(state==='dead'){player.vy+=GRAV*dt;player.y+=player.vy*dt;deathTimer-=dt;if(deathTimer<=0){if(lives>0){load(level);state='play'}else state='over'}return}if(state==='clear'){clearTimer-=dt;if(clearTimer<=0){if(level<2){load(level+1);state='play'}else{state='win';sid('stopMusic')}}return}
 player.power=Math.max(0,player.power-dt);jumpBuffer=Math.max(0,jumpBuffer-dt);player.coyote=player.onGround?.1:Math.max(0,player.coyote-dt);
 const dir=(keys.has('ArrowRight')||keys.has('KeyD')?1:0)-(keys.has('ArrowLeft')||keys.has('KeyA')?1:0),speed=player.power?145:105;const target=dir*speed;player.vx+=Math.max(-800*dt,Math.min(800*dt,target-player.vx));if(dir)player.face=dir;
 if(jumpBuffer>0&&player.coyote>0){player.vy=-300;player.onGround=false;player.coyote=0;jumpBuffer=0;sound('jump')}
@@ -208,7 +208,7 @@ else if(h===10){px(sx+3,sy-3,5,3,'d');px(sx+4,sy-4,3,1,'m');px(sx+3,sy-3,2,1,'m'
 }}
 function drawGem(x,y,ph=0){const f=Math.floor(anim*7+ph*.11)%4;ctx.drawImage(gemSpr[f===3?1:f],x-4,y-5);if((Math.floor(anim*5)+Math.floor(ph/16))%6===0){px(x+3,y-7,1,3,'w');px(x+2,y-6,3,1,'w')}}
 function drawStar(x,y){const a=anim*5;ctx.drawImage(starSpr[Math.floor(anim*8)%2],Math.round(x),Math.round(y));px(x+6+Math.cos(a)*9,y+6+Math.sin(a)*9,1,1,'w');px(x+6-Math.cos(a)*9,y+6-Math.sin(a)*9,1,1,'y')}
-function render(){const cam=Math.floor(camera);if(state==='title')titleScene();else background();
+function render(){if(state==='crack'){crackScene();return}const cam=Math.floor(camera);if(state==='title')titleScene();else background();
 if(world&&state!=='title'){const ts=tiles[level],from=Math.floor(cam/T),to=Math.ceil((cam+W)/T);
 for(let y=0;y<world.length;y++)for(let x=from;x<=to;x++){const v=tile(x,y);if(v==='.')continue;const sx=x*T-cam,sy=y*T;
 if(v==='#'){const top=y>0&&!solid(x,y-1),dn=solid(x,y+1);ctx.drawImage(top?ts.top:ts.inner,sx,sy);
@@ -241,6 +241,28 @@ ptext('SCORE '+String(score).padStart(6,'0'),8,6,1,'w');ptext('♥ '+lives,96,6,
 ptext((level+1)+'/3 '+themes[level].name,8,17,1,'c');
 if(player&&player.power>0){ptext('STAR '+player.power.toFixed(1),8,27,1,'y');px(60,27,102,7,'k');px(61,28,Math.round(player.power/9*100),5,player.power<2&&Math.floor(anim*8)%2?'w':'y')}}
 function sister(set,x,y,face,ph){const t=anim+ph,hop=t%4>3.4,fr=hop?set.jump:t%2.9<.14?set.blink:set.idle;ctx.save();ctx.translate(x,y-(hop?Math.round(Math.sin((t%4-3.4)/.6*Math.PI)*14):0));ctx.scale(face*3,3);ctx.drawImage(fr,-8,-16);ctx.restore()}
+function chipHalf(x,y,pts,fill,edge,legsV,legsH){ctx.save();ctx.translate(x,y);ctx.beginPath();ctx.moveTo(pts[0][0],pts[0][1]);for(const q of pts)ctx.lineTo(q[0],q[1]);ctx.closePath();ctx.fillStyle=C[fill];ctx.fill();ctx.strokeStyle=C[edge];ctx.lineWidth=1;ctx.stroke();for(let i=0;i<5;i++){const ly=-18+i*8;px(legsV.x,ly,legsV.w,3,'s');px(legsV.x+(legsV.w>4?-2:4),ly+1,2,1,'w')}for(let i=0;i<5;i++){const lx=-18+i*8;px(lx,legsH.y,3,legsH.h,'s');px(lx+1,legsH.y+(legsH.h>4?-2:4),1,2,'w')}ctx.restore()}
+function sparks(cx,cy,t){for(let i=0;i<7;i++){const a=(i*1.3+Math.sin(t*7+i*2.1))*.9,len=4+((Math.floor(t*14)+i*3)%7),k=i%3===0?'w':i%3===1?'c':'y';if(Math.floor(t*11)+i%4>9)continue;let x=cx,y=cy;for(let s=0;s<len;s++){x+=Math.round(Math.cos(a)*1.4)+(((s*7+i*13)%3)-1);y+=Math.round(Math.sin(a)*1.4)-1;px(x,y,1,1,k)}px(cx-1,cy-1,3,3,i%2?'y':'w')}for(let i=0;i<3;i++){const a=(i*2.1+Math.sin(t*5+i))*.7;px(cx+Math.round(Math.cos(a)*(10+(Math.floor(t*9)+i)%6)),cy+Math.round(Math.sin(a)*(8+(Math.floor(t*9)+i)%5)),1,1,'c')}}
+const crackText='ROBD0511 AI CREW PRESENTS · RETRO SISTERS · A ORIGINAL C64 STYLE ADVENTURE · CODE MUSIC PIXELS BY THE AI CREW · GREETINGS TO EVERYONE STILL CRACKING THE DREAM · ',crackRainbow=['r','o','y','g','c','B','l','p'];
+function crackTick(dt){const prev=crackT;crackT+=dt;if(prev<3.6&&crackT>=3.6)sound('crack')}
+function toTitle(){sid('stopMusic');state='title';syncCracktroUI();canvas.focus()}
+function crackScene(){const t=crackT,off=Math.floor(t*10);band(0,H,'k');
+if(t>=4.5)for(let i=0;i<5;i++){const y=Math.round(147+i*20+Math.sin(t*2+i*.65)*8),k=i%2?'p':'b';band(y,3,'k',k,1);band(y+3,5,k);band(y+8,3,k,'k',2)}
+starfield(100,0,H);
+if(t>=1){const sc=2,step=6*sc,travel=(t-1)*114,first=Math.floor((travel-W)/step);
+for(let i=Math.max(0,first);i<first+Math.ceil(W/step)+2;i++){const x=W+i*step-travel;if(x>=W)break;if(x<=-step)continue;ptext(crackText[i%crackText.length],x,Math.round(120+Math.sin(x*.05+t*4)*24),sc,crackRainbow,'left',off+i)}}
+if(t>=3){const u=Math.min(1,(t-3)/1.2),sc=Math.round(1+5*(1-(1-u)**3*Math.cos(u*7)));
+ctx.save();ctx.translate(W/2,0);ctx.scale(.75,1);
+ptext('ROBD0511',3,112+3,sc,'k','center');ptext('ROBD0511',0,112,sc,crackRainbow,'center',off);
+ptext('AI CREW',3,112+7*sc+7+3,sc,'k','center');ptext('AI CREW',0,112+7*sc+7,sc,crackRainbow,'center',off);ctx.restore()}
+if(t>=5){const u=Math.min(1,(t-5)/1.2),e=1-(1-u)**3,sep=Math.round(10*e),drift=Math.sin(anim*1.6)*1.5,
+left=[[-30,-24],[4,-24],[10,-18],[16,-24],[22,-16],[30,-22],[26,-8],[32,0],[24,10],[30,20],[20,24],[6,24],[-30,24]],
+right=[[36,-24],[66,-24],[66,24],[36,24],[42,20],[34,10],[40,0],[32,-8],[38,-16],[32,-22],[28,-16],[34,-24]],
+cx=W/2,cy=246;
+chipHalf(cx-6-sep+drift,cy+Math.sin(anim*1.3)*1.5,left,'b','B',{x:-34,w:4},{y:26,h:4});
+chipHalf(cx+6+sep-drift,cy-Math.sin(anim*1.3)*1.5,right,'b','B',{x:66,w:4},{y:26,h:4});
+if(t>=6.2)sparks(cx+drift*.5,cy,anim)}
+if(t>=11.5&&Math.floor((t-11.5)*3)%2===0)ptext('PRESS FIRE TO CONTINUE',W/2,266,2,'w','center')}
 /* ---- title screen: night sky, striped raster sun, both sisters on the hill ---- */
 function titleScene(){band(0,54,'k');band(54,10,'k','b',1);band(64,10,'k','b',2);band(74,10,'b','k',1);band(84,56,'b');band(140,10,'b','p',1);band(150,10,'b','p',2);band(160,10,'p','b',1);band(170,H-170,'p');
 starfield(90,0,150);
@@ -259,7 +281,14 @@ ptext(sub,W/2,y0+42,1,'w','center');px(W/2-60,y0+56,120,1,'B');px(W/2-30,y0+58,6
 ptext(hint,W/2,tt?264:y0+78,1,Math.sin(anim*3)>0?'c':'B','center');
 if(state==='win'){sister(P,58,198,1,0);sister(P2,W-58,198,-1,.9)}}
 function pause(){if(state==='play'){state='paused';if(music)sid('stopMusic');jumpBuffer=0}else if(state==='paused'){state='play';if(music)sid('startMusic',level)}acc=0}
-const jumpKeys=['Space','KeyW','ArrowUp'];window.addEventListener('keydown',e=>{if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code))e.preventDefault();keys.add(e.code);if(e.repeat)return;if(e.code==='KeyP'||e.code==='Escape'){pause();return}if((state==='title'||state==='over'||state==='win')&&(e.code==='Enter'||e.code==='Space')){start();return}if(state==='play'&&jumpKeys.includes(e.code))jumpBuffer=.13});window.addEventListener('keyup',e=>{keys.delete(e.code);if(state==='play'&&jumpKeys.includes(e.code)&&player.vy< -100)player.vy=-100});document.addEventListener('visibilitychange',()=>{if(document.hidden&&state==='play')pause()});canvas.addEventListener('click',()=>{if(['title','over','win'].includes(state))start();canvas.focus()});function bindBtn(id,fn){const b=document.getElementById(id);if(b)b.onclick=function(ev){try{b.blur()}catch(_){}fn(ev)}}bindBtn('start',start);bindBtn('pause',pause);bindBtn('music',()=>{music=!music;sid('setMusicEnabled',music);document.getElementById('music').textContent='Music: '+(music?'ON':'OFF')});bindBtn('sfx',()=>{sfx=!sfx;sid('setSfxEnabled',sfx);document.getElementById('sfx').textContent='SFX: '+(sfx?'ON':'OFF')});
+const jumpKeys=['Space','KeyW','ArrowUp'];window.addEventListener('keydown',e=>{if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code))e.preventDefault();keys.add(e.code);if(e.repeat)return;if(e.code==='KeyP'||e.code==='Escape'){pause();return}if(state==='crack'&&(e.code==='Enter'||e.code==='Space')){e.preventDefault();startCracktroAudio();crackAdvance();return}if((state==='title'||state==='over'||state==='win')&&(e.code==='Enter'||e.code==='Space')){start();return}if(state==='play'&&jumpKeys.includes(e.code))jumpBuffer=.13});window.addEventListener('keyup',e=>{keys.delete(e.code);if(state==='play'&&jumpKeys.includes(e.code)&&player.vy< -100)player.vy=-100});document.addEventListener('visibilitychange',()=>{if(document.hidden&&state==='play')pause()});canvas.addEventListener('click',()=>{if(state==='crack'){startCracktroAudio();crackAdvance()}else if(['title','over','win'].includes(state))start();canvas.focus()});function bindBtn(id,fn){const b=document.getElementById(id);if(b)b.onclick=function(ev){try{b.blur()}catch(_){}fn(ev)}}bindBtn('start',()=>{if(state==='crack')startCracktroAudio();else start()});bindBtn('pause',pause);bindBtn('music',()=>{music=!music;sid('setMusicEnabled',music);document.getElementById('music').textContent='Music: '+(music?'ON':'OFF')});bindBtn('sfx',()=>{sfx=!sfx;sid('setSfxEnabled',sfx);document.getElementById('sfx').textContent='SFX: '+(sfx?'ON':'OFF')});
+/* Cracktro-UI: Buttons + Spieltitel aus, kleine Audio ON/OFF-Taste */
+const audioBtn=document.getElementById('audioToggle');
+function syncCracktroUI(){const cr=state==='crack';document.querySelector('.controls').classList.toggle('hidden',cr);document.getElementById('gameTitle').style.display=cr?'none':'';document.getElementById('guide').hidden=cr;audioBtn.style.display=cr?'block':'none';audioBtn.textContent='Audio: '+(music?'ON':'OFF')}
+function crackAdvance(){toTitle()}
+function startCracktroAudio(){if(!music)return;sid('startMusic',3)}
+bindBtn('audioToggle',()=>{music=!music;sid('setMusicEnabled',music);if(music&&state==='crack')sid('startMusic',3);audioBtn.textContent='Audio: '+(music?'ON':'OFF')});
+syncCracktroUI();
 function frame(now){if(last===0)last=now;acc+=Math.min((now-last)/1000,.1);last=now;try{while(acc>=DT){update(DT);acc-=DT}render()}catch(e){acc=0;ctx.setTransform(1,0,0,1,0,0);}requestAnimationFrame(frame)}requestAnimationFrame(frame);
 })();
 </script></body></html>
